@@ -1,7 +1,9 @@
 import os
-import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions  # For error handling
+import json
 import logging
+from typing import Dict
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -9,117 +11,136 @@ logger = logging.getLogger(__name__)
 
 class PredictionService:
     def __init__(self):
-        # Load the Google API key from the environment variable
-        api_key = os.getenv("GOOGLE_API_KEY")
-        if not api_key:
-            raise ValueError("GOOGLE_API_KEY not found in environment variables")
+        # Load API key from environment variable
+        self.api_key = os.getenv("GOOGLE_API_KEY")
+        if not self.api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable not set")
         
-        # Configure the Generative AI client
-        genai.configure(api_key=api_key)
-        logger.info("Google Generative AI configured successfully.")
+        # Configure Gemini API
+        genai.configure(api_key=self.api_key)
+        
+        # Initialize model with safety settings
+        self.model = genai.GenerativeModel(
+            'gemini-1.5-flash',
+            safety_settings=[
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
+            ]
+        )
+        logger.info("Gemini model initialized successfully")
 
-        # Define safety settings
-        self.safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-        ]
-
-        # Set up the model
-        self.model = "gemini-1.5-flash"  # Replace with the correct model name
-        logger.info(f"Using model: {self.model}")
-
-    def predict_price(self, population_growth: float, years_ahead: int, current_price: float):
-        """Predict housing prices using Google Generative AI."""
+    def predict_price(self, current_price: float, population_growth: float, years_ahead: int) -> Dict:
+        """Predict housing prices using Gemini API."""
         try:
-            # Generate the prompt
-            prompt = self._generate_prompt(population_growth, years_ahead, current_price)
-            logger.info(f"Generated prompt: {prompt[:200]}...")
-
-            # Call the Generative AI API
-            response = genai.generate_text(
-                model=self.model,
-                prompt=prompt,
-                safety_settings=self.safety_settings,
-                max_output_tokens=1000,
-                temperature=0.5
+            prompt = self._generate_prompt(current_price, population_growth, years_ahead)
+            logger.info(f"Sending prompt to Gemini: {prompt[:200]}...")
+            
+            # Generate content with timeout
+            response = self.model.generate_content(
+                prompt,
+                generation_config={
+                    "max_output_tokens": 1000,
+                    "temperature": 0.5
+                }
             )
-            logger.info(f"Raw response from Generative AI: {response}")
-
-            # Process the response
-            return self._process_response(response, population_growth, years_ahead, current_price)
-
-        except google_exceptions.GoogleAPICallError as e:
-            logger.error(f"Google API call error: {str(e)}")
+            
+            return self._process_response(response, current_price, population_growth, years_ahead)
+            
+        except google_exceptions.GoogleAPIError as e:
+            logger.error(f"Google API error: {str(e)}")
             return self._create_fallback_result(
-                population_growth, years_ahead, current_price, f"Google API call error: {str(e)}"
+                current_price, population_growth, years_ahead, f"API error: {str(e)}"
             )
         except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+            logger.error(f"Prediction failed: {str(e)}")
             return self._create_fallback_result(
-                population_growth, years_ahead, current_price, f"Unexpected error: {str(e)}"
+                current_price, population_growth, years_ahead, str(e)
             )
 
-    def _generate_prompt(self, population_growth: float, years_ahead: int, current_price: float) -> str:
-        """Generate the prompt for the Generative AI model."""
+    def _generate_prompt(self, current_price: float, population_growth: float, years_ahead: int) -> str:
+        """Generate the prompt for Gemini."""
         return f"""
-        You are a real estate market analyst. Predict the housing price in {years_ahead} years based on:
+        As a real estate expert, predict the home price in {years_ahead} years based on:
         - Current price: ${current_price:,.2f}
-        - Annual population growth rate: {population_growth}%
-
-        Provide your response in EXACTLY this JSON format:
+        - Annual population growth: {population_growth}%
+        
+        Respond ONLY with this exact JSON format between ```json markers:
+        ```json
         {{
             "predicted_price": 0.0,
             "confidence": 0.0,
-            "factors": ["factor1", "factor2"],
-            "analysis": "Your analysis here"
+            "key_factors": ["factor1", "factor2"],
+            "analysis": "Your professional analysis here"
         }}
+        ```
+        
+        Considerations:
+        1. Population growth impact on demand
+        2. Historical price trends
+        3. Current market conditions
+        4. Economic indicators
         """
 
-    def _process_response(self, response, population_growth: float, years_ahead: int, current_price: float):
-        """Process the response from the Generative AI model."""
+    def _process_response(self, response, current_price: float, population_growth: float, years_ahead: int) -> Dict:
+        """Process Gemini response and extract JSON."""
         try:
-            content = response.result  # Adjust based on the actual response structure
-            logger.info(f"Processing response content: {content[:200]}...")
-
-            # Parse the JSON response
+            content = response.text
+            
+            # Extract JSON from markdown code block if present
+            if '```json' in content:
+                content = content.split('```json')[1].split('```')[0].strip()
+            
             data = json.loads(content)
-
+            
             # Validate response structure
-            if not all(key in data for key in ["predicted_price", "confidence", "factors", "analysis"]):
-                raise ValueError("Missing required fields in response")
-
+            required_keys = ["predicted_price", "confidence", "key_factors", "analysis"]
+            if not all(key in data for key in required_keys):
+                raise ValueError(f"Missing required keys. Got: {list(data.keys())}")
+            
             return {
+                "status": "success",
                 "predicted_price": float(data["predicted_price"]),
                 "confidence_score": float(data["confidence"]),
-                "factors": data["factors"],
-                "analysis": data["analysis"]
+                "factors": data["key_factors"],
+                "analysis": data["analysis"],
+                "current_price": current_price,
+                "population_growth": population_growth,
+                "years_ahead": years_ahead
             }
+            
         except Exception as e:
-            logger.warning(f"Response processing failed: {str(e)}")
-            return self._create_fallback_result(
-                population_growth, years_ahead, current_price, f"Response processing failed: {str(e)}"
-            )
+            logger.error(f"Failed to process response: {str(e)}\nRaw response: {content}")
+            raise
 
-    def _create_fallback_result(self, population_growth: float, years_ahead: int, current_price: float, reason: str):
-        """Create a fallback result with a simple calculation."""
+    def _create_fallback_result(self, current_price: float, population_growth: float, years_ahead: int, reason: str) -> Dict:
+        """Create fallback prediction when API fails."""
         predicted_price = round(current_price * (1 + (population_growth * years_ahead / 100)), 2)
         return {
+            "status": "fallback",
             "predicted_price": predicted_price,
             "confidence_score": 0.7,
             "factors": ["Population growth"],
-            "analysis": f"Fallback calculation: {reason}"
+            "analysis": f"Fallback calculation: {reason}",
+            "current_price": current_price,
+            "population_growth": population_growth,
+            "years_ahead": years_ahead
         }
+
+# Test function
+if __name__ == "__main__":
+    # Set test environment variable
+    os.environ["GOOGLE_API_KEY"] = "your_test_key_here"
+    
+    try:
+        service = PredictionService()
+        result = service.predict_price(
+            current_price=350000,
+            population_growth=2.5,
+            years_ahead=5
+        )
+        print("Test Prediction Result:")
+        print(json.dumps(result, indent=2))
+    except Exception as e:
+        print(f"Test failed: {str(e)}")

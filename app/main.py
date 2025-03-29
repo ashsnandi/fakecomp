@@ -5,6 +5,7 @@ from typing import List, Optional
 import os
 from dotenv import load_dotenv
 from .services.prediction_service import PredictionService
+from .services.food_prediction_service import FoodPredictionService
 from .services.data_service import DataService
 import logging
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="Housing Price Prediction API")
+app = FastAPI(title="Alien Simulation API")
 
 # Configure CORS
 app.add_middleware(
@@ -29,6 +30,7 @@ app.add_middleware(
 # Initialize services
 try:
     prediction_service = PredictionService()
+    food_prediction_service = FoodPredictionService()
     data_service = DataService()
     logger.info("Services initialized successfully")
 except Exception as e:
@@ -40,6 +42,9 @@ class PredictionRequest(BaseModel):
     years_ahead: int
     current_price: float
 
+class FoodPredictionRequest(PredictionRequest):
+    food_item: str
+
 class PredictionResponse(BaseModel):
     predicted_price: float
     confidence_score: float
@@ -48,7 +53,7 @@ class PredictionResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Housing Price Prediction API"}
+    return {"message": "Welcome to Alien Simulation API"}
 
 @app.get("/historical-data")
 async def get_historical_data():
@@ -68,18 +73,27 @@ async def predict_price(request: PredictionRequest):
             current_price=request.current_price
         )
         logger.info(f"Generated prediction: {prediction}")
-        
-        # Ensure the response matches the expected format
-        return {
-            "predicted_price": prediction["predicted_price"],
-            "confidence_score": prediction["confidence_score"],
-            "factors": prediction["factors"],
-            "analysis": prediction["analysis"]
-        }
+        return prediction
     except Exception as e:
         logger.error(f"Error in predict_price endpoint: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/predict-food", response_model=PredictionResponse)
+async def predict_food_price(request: FoodPredictionRequest):
+    try:
+        logger.info(f"Received food prediction request: {request}")
+        prediction = food_prediction_service.predict_price(
+            food_item=request.food_item,
+            population_growth=request.population_growth,
+            years_ahead=request.years_ahead,
+            current_price=request.current_price
+        )
+        logger.info(f"Generated food prediction: {prediction}")
+        return prediction
+    except Exception as e:
+        logger.error(f"Error in predict_food_price endpoint: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"} 
+    return {"status": "healthy"}
