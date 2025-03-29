@@ -139,7 +139,7 @@ function FoodPrediction() {
                     type="monotone"
                     dataKey="price"
                     stroke="#FF9800"
-                    name="Price"
+                    name="Supply"
                   />
                   <Line
                     yAxisId="right"

@@ -1,4 +1,4 @@
-// src/pages/JobMarket.js
+OB// src/pages/JobMarket.js
 import React from 'react';
 import {
   Container,
@@ -37,9 +37,13 @@ const resourceAllocationData = [
   { name: 'Healthcare', value: 100 },
 ];
 
+
+
 // Some random colors for the pie chart slices
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
-
+const randomNumberInRange = (min, max) => {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
 function JobMarket() {
   return (
     <Container maxWidth="lg">

@@ -33,7 +33,7 @@ function Home() {
             textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
           }}
         >
-          Alien Simulation
+          quAntIfy
         </Typography>
 
         <Paper 
