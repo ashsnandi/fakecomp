@@ -6,6 +6,8 @@ import Home from './pages/Home';
 import HousingPrediction from './pages/HousingPrediction';
 import FoodPrediction from './pages/FoodPrediction';
 
+
+
 const theme = createTheme({
   palette: {
     mode: 'light',

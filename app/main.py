@@ -55,13 +55,16 @@ class PredictionResponse(BaseModel):
 async def root():
     return {"message": "Welcome to Alien Simulation API"}
 
-@app.get("/historical-data")
-async def get_historical_data():
+@app.get("/api/housing/historical-data")
+async def get_housing_historical_data():
+    """
+    Endpoint to fetch historical housing data
+    """
     try:
         return data_service.get_historical_data()
     except Exception as e:
-        logger.error(f"Error getting historical data: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error fetching housing historical data: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch housing historical data")
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict_price(request: PredictionRequest):
