@@ -23,14 +23,12 @@ const sampleHistoricalData = {
 };
 
 function FoodPrediction() {
-  // Local "historicalData" from above
   const historicalData = sampleHistoricalData;
 
-  // We'll store the "prediction" in local state
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [formData, setFormData] = useState({
     item: '',
     quantity: '',
@@ -46,14 +44,14 @@ function FoodPrediction() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
-    // For demonstration, do a simple local "prediction" formula
+
+    // Local "prediction" approach
     try {
       const currentPrice = parseFloat(formData.currentPrice) || 1;
       const growth = parseFloat(formData.populationGrowth) || 0;
       const years = parseInt(formData.yearsAhead) || 1;
 
-      // Very simple local formula:
+      // Basic formula
       const predictedPrice = currentPrice * Math.pow(1 + growth / 100, years);
       const confidenceScore = 0.8; // placeholder
       const analysis = `Purely local calculation: Price = currentPrice * (1 + growth%)^years.`;
@@ -89,9 +87,29 @@ function FoodPrediction() {
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Food Price Prediction
-        </Typography>
+        {/* Policy Considerations Panel (Front & Center) */}
+        <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">
+            Food Price Policy Considerations
+          </Typography>
+
+          <Typography variant="body1" paragraph>
+            We can mitigate inflationary pressures on food by <b>rationing</b> the amount of food
+            that each household can consume.
+          </Typography>
+          <Typography variant="body1" paragraph>
+            While rationing, we can also attempt to <b>increase the supply of food</b> in our city
+            by importing from surrounding cities.
+          </Typography>
+          <Typography variant="body1" paragraph>
+            We can invest more into our farmers by introducing <b>new subsidies</b> for producing
+            a certain amount for every harvest.
+          </Typography>
+          <Typography variant="body1" paragraph>
+            An objection to these subsidies is that they could disproportionately
+            <b> benefit large farms</b> while disadvantaging smaller farms.
+          </Typography>
+        </Paper>
 
         <Grid container spacing={3}>
           {/* Historical Data Chart */}
@@ -104,13 +122,11 @@ function FoodPrediction() {
                 <LineChart
                   width={500}
                   height={300}
-                  data={
-                    historicalData.years.map((year, idx) => ({
-                      year,
-                      price: historicalData.prices[idx],
-                      demand: historicalData.demand[idx],
-                    }))
-                  }
+                  data={historicalData.years.map((year, idx) => ({
+                    year,
+                    price: historicalData.prices[idx],
+                    demand: historicalData.demand[idx],
+                  }))}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="year" />
@@ -241,7 +257,9 @@ function FoodPrediction() {
                       Prediction Result
                     </Typography>
                     <Typography variant="h4" color="primary">
-                      ${prediction.predicted_price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      ${prediction.predicted_price.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })}
                     </Typography>
                     <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 1 }}>
                       Confidence Score: {(prediction.confidence_score * 100).toFixed(1)}%

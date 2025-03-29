@@ -74,7 +74,7 @@ function CityModels() {
             />
             <TextField
               fullWidth
-              label="Base Price"
+              label="Base Price"    
               name="base_price"
               type="number"
               value={formData.base_price}

@@ -1,3 +1,5 @@
+// src/pages/DailyReport.js
+
 import React, { useState } from 'react';
 import {
   Container,
@@ -7,10 +9,21 @@ import {
   Button,
   Paper,
   Alert,
-  Divider
+  Divider,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+
+// A local bank of random advice. You can expand this as you like!
+const RANDOM_ARTICLE_SNIPPETS = [
+  (aliens) => `We have detected a surge of ${aliens} new alien arrivals. City council recommends building advanced dwellings.`,
+  (aliens) => `${aliens} aliens in one day! Consider allocating more farmland for intergalactic crop varieties.`,
+  (aliens) => `Reports indicate ${aliens} off-world visitors. It's time to budget for new energy infrastructure and possibly universal translator devices.`,
+  (aliens) => `Alien count of ${aliens} means we might face population density challenges. Let's explore vertical housing solutions.`,
+  () => `We also propose investing in interstellar tourism to boost local economy.`,
+  () => `Local scientists suggest improving warp-train lines for comfortable alien transportation.`,
+  () => `Environmental factors: we must ensure a clean energy supply if we want to remain a top alien-friendly city.`,
+];
 
 const API_URL = 'http://localhost:8000';
 
@@ -23,31 +36,57 @@ function DailyReport() {
   const [reportResult, setReportResult] = useState(null);
   const [error, setError] = useState('');
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Generate a random article from our snippet bank
+  const generateRandomArticle = (aliensCount) => {
+    // Pick 2-4 random snippets
+    const snippetCount = Math.floor(Math.random() * 3) + 2; 
+    const chosen = [];
+    for (let i = 0; i < snippetCount; i++) {
+      const snippetFunc =
+        RANDOM_ARTICLE_SNIPPETS[
+          Math.floor(Math.random() * RANDOM_ARTICLE_SNIPPETS.length)
+        ];
+      chosen.push(snippetFunc(aliensCount));
+    }
+    return chosen.join(' ');
   };
 
   const handleSubmitReport = async (e) => {
     e.preventDefault();
     setError('');
     try {
-      const response = await axios.post(`${API_URL}/daily-report`, {
+      // 1) Post daily report to your backend
+      const res = await axios.post(`${API_URL}/daily-report`, {
         aliens_count: parseInt(formData.aliens_count),
         comments: formData.comments,
       });
-      setReportResult(response.data);
+
+      // 2) Use the server’s data as normal
+      const serverData = res.data;
+
+      // 3) Create a local "article" ignoring the server's AI field
+      const localArticle = generateRandomArticle(formData.aliens_count);
+
+      // 4) Merge that into our final "reportResult" object
+      setReportResult({
+        ...serverData,
+        random_article: localArticle,
+      });
     } catch (err) {
       setError('Failed to process daily report');
     }
+  };
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
     <Container maxWidth="md">
       <Box sx={{ my: 4 }}>
         <Typography variant="h4" align="center" gutterBottom>
-          Daily Report
+          Daily Report (Random Article Demo)
         </Typography>
-
         <Paper sx={{ p: 4 }}>
           <form onSubmit={handleSubmitReport}>
             <TextField
@@ -87,6 +126,7 @@ function DailyReport() {
           )}
         </Paper>
 
+        {/* Display results, including random article */}
         {reportResult && (
           <Box sx={{ mt: 4 }}>
             <Paper sx={{ p: 3, backgroundColor: '#f9f9f9' }}>
@@ -100,10 +140,10 @@ function DailyReport() {
 
             <Paper sx={{ p: 3, mt: 3 }}>
               <Typography variant="h6" gutterBottom>
-                🧠 Infrastructure Advice from AI
+                Small Recommendations
               </Typography>
               <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                {reportResult.infrastructure_advice}
+                {reportResult.random_article}
               </Typography>
             </Paper>
 
@@ -111,13 +151,7 @@ function DailyReport() {
               <Typography variant="h6" gutterBottom>
                 🚀 Autofill Data for Prediction Pages
               </Typography>
-              <Typography variant="subtitle1">Housing:</Typography>
-              <pre>{JSON.stringify(reportResult.auto_fill.housing, null, 2)}</pre>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle1">Food:</Typography>
-              <pre>{JSON.stringify(reportResult.auto_fill.food, null, 2)}</pre>
+              <pre>{JSON.stringify(reportResult.auto_fill, null, 2)}</pre>
             </Paper>
           </Box>
         )}

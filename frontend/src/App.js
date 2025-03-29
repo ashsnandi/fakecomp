@@ -8,7 +8,8 @@ import HousingPrediction from './pages/HousingPrediction';
 import FoodPrediction from './pages/FoodPrediction';
 import CityModels from './pages/CityModels';
 import DailyReport from './pages/DailyReport';
-
+import JobMarket from './pages/JobMarket';
+import { CityDataContext } from './CityDataContext';
 
 const theme = createTheme({
   palette: {
@@ -56,6 +57,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Routes>
+        <Route path="/job-market" element={<JobMarket />} />
         <Route path="/" element={<Home />} />
         <Route path="/housing" element={<HousingPrediction />} />
         <Route path="/food" element={<FoodPrediction />} />

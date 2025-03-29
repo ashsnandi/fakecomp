@@ -121,6 +121,24 @@ function Home() {
                 Daily Report
               </Button>
             </Grid>
+            <Grid item xs={12} md={6}>
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={() => navigate('/job-market')}
+                sx={{
+                  height: '100px',
+                  fontSize: '1.2rem',
+                  background: 'linear-gradient(45deg,rgb(149, 212, 214) 30%,rgb(10, 100, 128) 90%)',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg,rgb(25, 172, 230) 30%,rgb(67, 255, 246) 90%)',
+                  },
+                }}
+              >
+                Job Market
+              </Button>
+            </Grid>
 
 
           </Grid>
