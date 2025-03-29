@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Container,
   Box,
@@ -14,47 +14,66 @@ import {
   ListItemText,
 } from '@mui/material';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
-const API_URL = 'http://localhost:8000';
+// Hardcoded historical data (no API calls)
+const sampleHistoricalData = {
+  years: [2010, 2011, 2012, 2013, 2014, 2015],
+  prices: [10, 12, 14, 16, 17, 20],
+  demand: [100, 120, 130, 150, 160, 180],
+};
 
 function FoodPrediction() {
-  const navigate = useNavigate();
-  const [historicalData, setHistoricalData] = useState(null);
+  // Local "historicalData" from above
+  const historicalData = sampleHistoricalData;
+
+  // We'll store the "prediction" in local state
   const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
   const [formData, setFormData] = useState({
     item: '',
     quantity: '',
     location: '',
     season: '',
+    currentPrice: '',
+    populationGrowth: '',
+    yearsAhead: '',
   });
 
-  useEffect(() => {
-    fetchHistoricalData();
-  }, []);
-
-  const fetchHistoricalData = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/food-historical-data`);
-      setHistoricalData(response.data);
-    } catch (err) {
-      setError('Failed to fetch historical data');
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  // Called on form submit
+  const handleSubmit = (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
-
+    setError('');
+    
+    // For demonstration, do a simple local "prediction" formula
     try {
-      const response = await axios.post(`${API_URL}/predict-food`, formData);
-      setPrediction(response.data);
+      const currentPrice = parseFloat(formData.currentPrice) || 1;
+      const growth = parseFloat(formData.populationGrowth) || 0;
+      const years = parseInt(formData.yearsAhead) || 1;
+
+      // Very simple local formula:
+      const predictedPrice = currentPrice * Math.pow(1 + growth / 100, years);
+      const confidenceScore = 0.8; // placeholder
+      const analysis = `Purely local calculation: Price = currentPrice * (1 + growth%)^years.`;
+
+      // Build a "factors" array from user inputs
+      const factors = [
+        `Quantity: ${formData.quantity}`,
+        `Location: ${formData.location}`,
+        `Season: ${formData.season}`,
+        `Population Growth: ${growth}%`,
+      ];
+
+      setPrediction({
+        predicted_price: predictedPrice,
+        confidence_score: confidenceScore,
+        factors,
+        analysis,
+      });
     } catch (err) {
-      setError('Failed to get prediction');
+      setError('Failed to run local prediction');
     } finally {
       setLoading(false);
     }
@@ -75,6 +94,7 @@ function FoodPrediction() {
         </Typography>
 
         <Grid container spacing={3}>
+          {/* Historical Data Chart */}
           <Grid item xs={12} md={6}>
             <Paper elevation={3} sx={{ p: 4 }}>
               <Typography variant="h5" gutterBottom>
@@ -84,11 +104,13 @@ function FoodPrediction() {
                 <LineChart
                   width={500}
                   height={300}
-                  data={historicalData.years.map((year, index) => ({
-                    year,
-                    price: historicalData.prices[index],
-                    demand: historicalData.demand[index],
-                  }))}
+                  data={
+                    historicalData.years.map((year, idx) => ({
+                      year,
+                      price: historicalData.prices[idx],
+                      demand: historicalData.demand[idx],
+                    }))
+                  }
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="year" />
@@ -117,13 +139,14 @@ function FoodPrediction() {
             </Paper>
           </Grid>
 
+          {/* Prediction Form & Output */}
           <Grid item xs={12} md={6}>
             <Paper elevation={3} sx={{ p: 4 }}>
               <Typography variant="h5" gutterBottom>
                 Make a Prediction
               </Typography>
               <form onSubmit={handleSubmit}>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   <TextField
                     required
                     label="Food Item"
@@ -134,7 +157,7 @@ function FoodPrediction() {
                   />
                   <TextField
                     required
-                    label="Quantity (in units)"
+                    label="Quantity (units)"
                     name="quantity"
                     type="number"
                     value={formData.quantity}
@@ -157,14 +180,41 @@ function FoodPrediction() {
                     onChange={handleChange}
                     fullWidth
                   />
+                  <TextField
+                    required
+                    label="Current Price"
+                    name="currentPrice"
+                    type="number"
+                    value={formData.currentPrice}
+                    onChange={handleChange}
+                    fullWidth
+                  />
+                  <TextField
+                    required
+                    label="Population Growth (%)"
+                    name="populationGrowth"
+                    type="number"
+                    value={formData.populationGrowth}
+                    onChange={handleChange}
+                    fullWidth
+                  />
+                  <TextField
+                    required
+                    label="Years Ahead"
+                    name="yearsAhead"
+                    type="number"
+                    value={formData.yearsAhead}
+                    onChange={handleChange}
+                    fullWidth
+                  />
 
                   <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                     <Button
                       variant="outlined"
-                      onClick={() => navigate('/')}
+                      onClick={() => window.history.back()}
                       disabled={loading}
                     >
-                      Back to Home
+                      Back
                     </Button>
                     <Button
                       type="submit"
@@ -191,10 +241,10 @@ function FoodPrediction() {
                       Prediction Result
                     </Typography>
                     <Typography variant="h4" color="primary">
-                      ${prediction.predictedPrice.toLocaleString()}
+                      ${prediction.predicted_price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                     </Typography>
                     <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 1 }}>
-                      Confidence Score: {(prediction.confidence * 100).toFixed(1)}%
+                      Confidence Score: {(prediction.confidence_score * 100).toFixed(1)}%
                     </Typography>
                   </Paper>
 
@@ -203,8 +253,8 @@ function FoodPrediction() {
                       Key Factors
                     </Typography>
                     <List>
-                      {prediction.factors.map((factor, index) => (
-                        <ListItem key={index}>
+                      {prediction.factors.map((factor, idx) => (
+                        <ListItem key={idx}>
                           <ListItemText primary={factor} />
                         </ListItem>
                       ))}
@@ -215,9 +265,7 @@ function FoodPrediction() {
                     <Typography variant="h6" gutterBottom>
                       Analysis
                     </Typography>
-                    <Typography variant="body1">
-                      {prediction.analysis}
-                    </Typography>
+                    <Typography variant="body1">{prediction.analysis}</Typography>
                   </Paper>
                 </Box>
               )}
