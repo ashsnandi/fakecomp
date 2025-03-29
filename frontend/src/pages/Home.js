@@ -83,9 +83,48 @@ function Home() {
                 Food Predictions
               </Button>
             </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={() => navigate('/city-model')}
+                sx={{
+                  height: '100px',
+                  fontSize: '1.2rem',
+                  background: 'linear-gradient(45deg, #673ab7 30%, #9575cd 90%)',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #512da8 30%, #7e57c2 90%)',
+                  },
+                }}
+              >
+                City Models
+              </Button>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={() => navigate('/daily-report')}
+                sx={{
+                  height: '100px',
+                  fontSize: '1.2rem',
+                  background: 'linear-gradient(45deg, #ff5722 30%, #ff8a65 90%)',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #e64a19 30%, #ff7043 90%)',
+                  },
+                }}
+              >
+                Daily Report
+              </Button>
+            </Grid>
+
+
           </Grid>
         </Paper>
-
         <Typography 
           variant="body1" 
           align="center" 

@@ -1,7 +1,8 @@
 import os
-import google.generativeai as genai
-from google.api_core import exceptions as google_exceptions  # For error handling
+import json
 import logging
+from typing import Dict
+import openai
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -9,98 +10,70 @@ logger = logging.getLogger(__name__)
 
 class PredictionService:
     def __init__(self):
-        # Load the Google API key from the environment variable
-        api_key = os.getenv("GOOGLE_API_KEY")
+        api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise ValueError("GOOGLE_API_KEY not found in environment variables")
-        
-        # Configure the Generative AI client
-        genai.configure(api_key=api_key)
-        logger.info("Google Generative AI configured successfully.")
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        openai.api_key = api_key
+        logger.info("OpenAI API configured successfully.")
 
-        # Define safety settings
-        self.safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_LOW_AND_ABOVE",
-            },
-        ]
-
-        # Set up the model
-        self.model = "gemini-1.5-flash"  # Replace with the correct model name
-        logger.info(f"Using model: {self.model}")
-
-    def predict_price(self, population_growth: float, years_ahead: int, current_price: float):
-        """Predict housing prices using Google Generative AI."""
+    def predict_price(self, population_growth: float, years_ahead: int, current_price: float) -> Dict:
         try:
-            # Generate the prompt
             prompt = self._generate_prompt(population_growth, years_ahead, current_price)
-            logger.info(f"Generated prompt: {prompt[:200]}...")
+            logger.info(f"Sending prompt to OpenAI...")
 
-            # Call the Generative AI API
-            response = genai.generate_text(
-                model=self.model,
-                prompt=prompt,
-                safety_settings=self.safety_settings,
-                max_output_tokens=1000,
-                temperature=0.5
+            response = openai.ChatCompletion.create(
+                model="gpt-4",  # or "gpt-3.5-turbo"
+                messages=[
+                    {"role": "system", "content": "You are a real estate economics assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.5,
+                max_tokens=500
             )
-            logger.info(f"Raw response from Generative AI: {response}")
 
-            # Process the response
-            return self._process_response(response, population_growth, years_ahead, current_price)
+            content = response.choices[0].message['content']
+            logger.info(f"Raw OpenAI response: {content[:200]}...")
 
-        except google_exceptions.GoogleAPICallError as e:
-            logger.error(f"Google API call error: {str(e)}")
-            return self._create_fallback_result(
-                population_growth, years_ahead, current_price, f"Google API call error: {str(e)}"
-            )
+            return self._process_response(content, population_growth, years_ahead, current_price)
+
         except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+            logger.error(f"OpenAI API call failed: {str(e)}", exc_info=True)
             return self._create_fallback_result(
-                population_growth, years_ahead, current_price, f"Unexpected error: {str(e)}"
+                population_growth, years_ahead, current_price,
+                f"OpenAI error: {str(e)}"
             )
 
     def _generate_prompt(self, population_growth: float, years_ahead: int, current_price: float) -> str:
-        """Generate the prompt for the Generative AI model."""
         return f"""
-        You are a real estate market analyst. Predict the housing price in {years_ahead} years based on:
-        - Current price: ${current_price:,.2f}
-        - Annual population growth rate: {population_growth}%
+You are a housing market forecasting AI.
 
-        Provide your response in EXACTLY this JSON format:
-        {{
-            "predicted_price": 0.0,
-            "confidence": 0.0,
-            "factors": ["factor1", "factor2"],
-            "analysis": "Your analysis here"
-        }}
-        """
+Based on:
+- Current housing price: ${current_price:.2f}
+- Annual population growth: {population_growth}%
+- Timeframe: {years_ahead} years
 
-    def _process_response(self, response, population_growth: float, years_ahead: int, current_price: float):
-        """Process the response from the Generative AI model."""
+Predict the future housing price and provide analysis.
+
+Respond in strict JSON format like this:
+{{
+  "predicted_price": float,
+  "confidence": float (0 to 1),
+  "factors": [string, ...],
+  "analysis": string
+}}
+
+Factors may include supply & demand, population dynamics, economic trends, etc.
+"""
+
+    def _process_response(self, content: str, population_growth: float, years_ahead: int, current_price: float) -> Dict:
         try:
-            content = response.result  # Adjust based on the actual response structure
-            logger.info(f"Processing response content: {content[:200]}...")
+            start = content.find('{')
+            end = content.rfind('}') + 1
+            json_str = content[start:end]
+            data = json.loads(json_str)
 
-            # Parse the JSON response
-            data = json.loads(content)
-
-            # Validate response structure
             if not all(key in data for key in ["predicted_price", "confidence", "factors", "analysis"]):
-                raise ValueError("Missing required fields in response")
+                raise ValueError("Missing fields in OpenAI response")
 
             return {
                 "predicted_price": float(data["predicted_price"]),
@@ -109,13 +82,13 @@ class PredictionService:
                 "analysis": data["analysis"]
             }
         except Exception as e:
-            logger.warning(f"Response processing failed: {str(e)}")
+            logger.warning(f"Failed to parse OpenAI response: {str(e)}")
             return self._create_fallback_result(
-                population_growth, years_ahead, current_price, f"Response processing failed: {str(e)}"
+                population_growth, years_ahead, current_price,
+                f"Response parsing failed: {str(e)}"
             )
 
-    def _create_fallback_result(self, population_growth: float, years_ahead: int, current_price: float, reason: str):
-        """Create a fallback result with a simple calculation."""
+    def _create_fallback_result(self, population_growth: float, years_ahead: int, current_price: float, reason: str) -> Dict:
         predicted_price = round(current_price * (1 + (population_growth * years_ahead / 100)), 2)
         return {
             "predicted_price": predicted_price,

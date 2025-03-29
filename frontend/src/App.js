@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -5,7 +6,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Home from './pages/Home';
 import HousingPrediction from './pages/HousingPrediction';
 import FoodPrediction from './pages/FoodPrediction';
-
+import CityModels from './pages/CityModels';
+import DailyReport from './pages/DailyReport';
 
 
 const theme = createTheme({
@@ -57,6 +59,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/housing" element={<HousingPrediction />} />
         <Route path="/food" element={<FoodPrediction />} />
+        <Route path="/city-model" element={<CityModels />} />
+        <Route path="/daily-report" element={<DailyReport />} />
       </Routes>
     </ThemeProvider>
   );
